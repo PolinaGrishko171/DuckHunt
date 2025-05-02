@@ -60,7 +60,7 @@ class Game:
             duck.move()
             if duck.is_hit:
                 self.ducks.remove(duck)
-                self.player.score += 1
+                self.player.score += duck.points
 
         self.ducks = [duck for duck in self.ducks if 0 <= duck.x <= SCREEN_WIDTH]
 
@@ -101,6 +101,7 @@ class Player:
         for duck in ducks:
             if duck.rect.collidepoint(position):
                 duck.is_hit = True
+                self.score += duck.points
                 return
         self.misses += 1
 
@@ -109,13 +110,26 @@ class Duck:
     speed_increase = 0
 
     def __init__(self):
+        self.type = random.choices(['normal', 'fast', 'fake'], weights=[0.6, 0.3, 0.1])[0]
+
         self.x = random.randint(SCREEN_WIDTH, SCREEN_WIDTH + 100)
         self.y = random.randint(50, SCREEN_HEIGHT - 50)
-        base_speed = random.choice([3, 4]) + Duck.speed_increase
-        self.speed_x = base_speed
+
+        if self.type == 'normal':
+            self.speed_x = random.choice([3, 4])
+            self.image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck.png"))
+            self.points = 1
+        elif self.type == 'fast':
+            self.speed_x = random.choice([6, 7])
+            self.image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_fast.png"))
+            self.points = 2
+        elif self.type == 'fake':
+            self.speed_x = random.choice([2, 3])
+            self.image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_fake.png"))
+            self.points = -1  
+
         self.speed_y = random.choice([1, -1]) * random.randint(1, 3)
-        original_image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck.png"))
-        self.image = pygame.transform.scale(original_image, (80, 80))       
+        self.image = pygame.transform.scale(self.image, (100, 100))
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
         self.is_hit = False
 
