@@ -33,6 +33,7 @@ class Game:
         self.start_time = pygame.time.get_ticks()
         self.time_limit = 60000
         self.time_left = self.time_limit
+        self.is_paused = False
 
     def start(self):
         self.run()
@@ -43,6 +44,9 @@ class Game:
                 self.is_running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 self.player.shoot(event.pos, self.ducks)
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_p:
+                    self.toggle_pause()
 
     def spawn_duck(self):
         now = pygame.time.get_ticks()
@@ -59,21 +63,23 @@ class Game:
             self.difficulty_timer = now
 
     def update_time(self):
-        self.time_left = self.time_limit - (pygame.time.get_ticks() - self.start_time)
-        if self.time_left <= 0:
-            self.game_over()
+        if not self.is_paused:
+            self.time_left = self.time_limit - (pygame.time.get_ticks() - self.start_time)
+            if self.time_left <= 0:
+                self.game_over()
 
     def update(self):
-        for duck in self.ducks[:]:
-            duck.move()
-            if duck.is_hit:
-                self.ducks.remove(duck)
-                self.player.score += duck.points
+        if not self.is_paused:
+            for duck in self.ducks[:]:
+                duck.move()
+                if duck.is_hit:
+                    self.ducks.remove(duck)
+                    self.player.score += duck.points
 
-        self.ducks = [duck for duck in self.ducks if 0 <= duck.x <= SCREEN_WIDTH]
+            self.ducks = [duck for duck in self.ducks if 0 <= duck.x <= SCREEN_WIDTH]
 
-        if self.player.misses >= 5:
-            self.game_over()
+            if self.player.misses >= 5:
+                self.game_over()
 
     def draw(self):
         self.screen.fill(BLUE)
@@ -82,6 +88,10 @@ class Game:
         self.ui_manager.draw_score(self.player.score)
         self.ui_manager.draw_misses(self.player.misses, 5)
         self.ui_manager.draw_time(self.time_left)
+
+        if self.is_paused:
+            self.ui_manager.draw_pause_message()
+
         pygame.display.flip()
 
     def game_over(self):
@@ -89,6 +99,11 @@ class Game:
         pygame.display.flip()
         time.sleep(2)
         self.is_running = False
+
+    def toggle_pause(self):
+        self.is_paused = not self.is_paused
+        if not self.is_paused:
+            self.start_time = pygame.time.get_ticks() - (self.time_limit - self.time_left)
 
     def run(self):
         self.difficulty_timer = pygame.time.get_ticks()
@@ -175,6 +190,10 @@ class UIManager:
     def draw_gameover(self):
         gameover_text = font.render("Game Over", True, BLACK)
         self.screen.blit(gameover_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50))
+
+    def draw_pause_message(self):
+        pause_text = font.render("PAUSED (Press 'P' to resume)", True, BLACK)
+        self.screen.blit(pause_text, (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2))
 
 
 game = Game(screen)
