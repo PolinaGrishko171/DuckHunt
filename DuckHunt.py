@@ -30,6 +30,9 @@ class Game:
         self.difficulty_timer = 0
         self.difficulty_step = 500
         self.min_spawn_interval = 400
+        self.start_time = pygame.time.get_ticks()
+        self.time_limit = 60000
+        self.time_left = self.time_limit
 
     def start(self):
         self.run()
@@ -55,6 +58,11 @@ class Game:
             Duck.increase_speed()
             self.difficulty_timer = now
 
+    def update_time(self):
+        self.time_left = self.time_limit - (pygame.time.get_ticks() - self.start_time)
+        if self.time_left <= 0:
+            self.game_over()
+
     def update(self):
         for duck in self.ducks[:]:
             duck.move()
@@ -73,6 +81,7 @@ class Game:
             duck.draw(self.screen)
         self.ui_manager.draw_score(self.player.score)
         self.ui_manager.draw_misses(self.player.misses, 5)
+        self.ui_manager.draw_time(self.time_left)
         pygame.display.flip()
 
     def game_over(self):
@@ -86,6 +95,7 @@ class Game:
         while self.is_running:
             self.handle_events()
             self.spawn_duck()
+            self.update_time()
             self.update_difficulty()
             self.update()
             self.draw()
@@ -126,7 +136,7 @@ class Duck:
         elif self.type == 'fake':
             self.speed_x = random.choice([2, 3])
             self.image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_fake.png"))
-            self.points = -1  
+            self.points = -1
 
         self.speed_y = random.choice([1, -1]) * random.randint(1, 3)
         self.image = pygame.transform.scale(self.image, (100, 100))
@@ -157,6 +167,10 @@ class UIManager:
     def draw_misses(self, misses, max_misses):
         misses_text = font.render(f"Misses: {misses}/{max_misses}", True, BLACK)
         self.screen.blit(misses_text, (10, 40))
+
+    def draw_time(self, time_left):
+        time_text = font.render(f"Time: {time_left // 1000}", True, BLACK)
+        self.screen.blit(time_text, (SCREEN_WIDTH - 120, 10))
 
     def draw_gameover(self):
         gameover_text = font.render("Game Over", True, BLACK)
