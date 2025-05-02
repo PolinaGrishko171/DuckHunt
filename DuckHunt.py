@@ -43,7 +43,8 @@ class Game:
             if event.type == pygame.QUIT:
                 self.is_running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                self.player.shoot(event.pos, self.ducks)
+                if not self.is_paused:  
+                    self.player.shoot(event.pos, self.ducks)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_p:
                     self.toggle_pause()
