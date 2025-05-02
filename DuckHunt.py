@@ -30,10 +30,6 @@ class Game:
         self.difficulty_timer = 0
         self.difficulty_step = 500
         self.min_spawn_interval = 400
-        self.start_time = pygame.time.get_ticks()
-        self.time_limit = 60000
-        self.time_left = self.time_limit
-        self.is_paused = False
 
     def start(self):
         self.run()
@@ -43,11 +39,7 @@ class Game:
             if event.type == pygame.QUIT:
                 self.is_running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if not self.is_paused:  
-                    self.player.shoot(event.pos, self.ducks)
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_p:
-                    self.toggle_pause()
+                self.player.shoot(event.pos, self.ducks)
 
     def spawn_duck(self):
         now = pygame.time.get_ticks()
@@ -63,24 +55,19 @@ class Game:
             Duck.increase_speed()
             self.difficulty_timer = now
 
-    def update_time(self):
-        if not self.is_paused:
-            self.time_left = self.time_limit - (pygame.time.get_ticks() - self.start_time)
-            if self.time_left <= 0:
-                self.game_over()
-
     def update(self):
-        if not self.is_paused:
-            for duck in self.ducks[:]:
-                duck.move()
-                if duck.is_hit:
-                    self.ducks.remove(duck)
-                    self.player.score += duck.points
+        for duck in self.ducks[:]:
+            duck.move()
+            if duck.is_hit:
+                self.ducks.remove(duck)
+                self.player.score += duck.points
+                if duck.restore_miss:
+                    self.player.misses = max(self.player.misses - 1, 0)
 
-            self.ducks = [duck for duck in self.ducks if 0 <= duck.x <= SCREEN_WIDTH]
+        self.ducks = [duck for duck in self.ducks if 0 <= duck.x <= SCREEN_WIDTH]
 
-            if self.player.misses >= 5:
-                self.game_over()
+        if self.player.misses >= 5:
+            self.game_over()
 
     def draw(self):
         self.screen.fill(BLUE)
@@ -88,11 +75,6 @@ class Game:
             duck.draw(self.screen)
         self.ui_manager.draw_score(self.player.score)
         self.ui_manager.draw_misses(self.player.misses, 5)
-        self.ui_manager.draw_time(self.time_left)
-
-        if self.is_paused:
-            self.ui_manager.draw_pause_message()
-
         pygame.display.flip()
 
     def game_over(self):
@@ -101,17 +83,11 @@ class Game:
         time.sleep(2)
         self.is_running = False
 
-    def toggle_pause(self):
-        self.is_paused = not self.is_paused
-        if not self.is_paused:
-            self.start_time = pygame.time.get_ticks() - (self.time_limit - self.time_left)
-
     def run(self):
         self.difficulty_timer = pygame.time.get_ticks()
         while self.is_running:
             self.handle_events()
             self.spawn_duck()
-            self.update_time()
             self.update_difficulty()
             self.update()
             self.draw()
@@ -136,7 +112,7 @@ class Duck:
     speed_increase = 0
 
     def __init__(self):
-        self.type = random.choices(['normal', 'fast', 'fake'], weights=[0.6, 0.3, 0.1])[0]
+        self.type = random.choices(['normal', 'fast', 'fake', 'bonus'], weights=[0.5, 0.3, 0.1, 0.1])[0]
 
         self.x = random.randint(SCREEN_WIDTH, SCREEN_WIDTH + 100)
         self.y = random.randint(50, SCREEN_HEIGHT - 50)
@@ -145,14 +121,22 @@ class Duck:
             self.speed_x = random.choice([3, 4])
             self.image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck.png"))
             self.points = 1
+            self.restore_miss = False
         elif self.type == 'fast':
             self.speed_x = random.choice([6, 7])
             self.image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_fast.png"))
             self.points = 2
+            self.restore_miss = False
         elif self.type == 'fake':
             self.speed_x = random.choice([2, 3])
             self.image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_fake.png"))
             self.points = -1
+            self.restore_miss = False
+        elif self.type == 'bonus':
+            self.speed_x = random.choice([3, 4])
+            self.image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_bonus.png"))
+            self.points = 3
+            self.restore_miss = True
 
         self.speed_y = random.choice([1, -1]) * random.randint(1, 3)
         self.image = pygame.transform.scale(self.image, (100, 100))
@@ -184,17 +168,9 @@ class UIManager:
         misses_text = font.render(f"Misses: {misses}/{max_misses}", True, BLACK)
         self.screen.blit(misses_text, (10, 40))
 
-    def draw_time(self, time_left):
-        time_text = font.render(f"Time: {time_left // 1000}", True, BLACK)
-        self.screen.blit(time_text, (SCREEN_WIDTH - 120, 10))
-
     def draw_gameover(self):
         gameover_text = font.render("Game Over", True, BLACK)
         self.screen.blit(gameover_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50))
-
-    def draw_pause_message(self):
-        pause_text = font.render("PAUSED (Press 'P' to resume)", True, BLACK)
-        self.screen.blit(pause_text, (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2))
 
 
 game = Game(screen)
