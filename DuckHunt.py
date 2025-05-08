@@ -35,8 +35,6 @@ class Game:
         self.min_spawn_interval = 400
         self.paused = False
         self.max_bullets = 5
-        self.remaining_bullets = self.max_bullets
-        self.bullet_image = pygame.image.load("bullet.png")
         self.start_time = pygame.time.get_ticks()
         self.paused_time = 0
         self.pause_start = None
@@ -48,35 +46,33 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.is_running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_p:
-                    self.paused = not self.paused
-                    if self.paused:
-                        self.pause_start = pygame.time.get_ticks()
-                    else:
-                        if self.pause_start:
-                            self.paused_time += pygame.time.get_ticks() - self.pause_start
-                            self.pause_start = None
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+                self.toggle_pause()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not self.paused:
                 if self.player.bullets > 0:
                     hit = self.player.shoot(event.pos, self.ducks)
                     if not hit:
                         self.player.bullets -= 1
-                        
+
+    def toggle_pause(self):
+        self.paused = not self.paused
+        now = pygame.time.get_ticks()
+        if self.paused:
+            self.pause_start = now
+        elif self.pause_start:
+            self.paused_time += now - self.pause_start
+            self.pause_start = None
+
     def get_elapsed_time(self):
-        if self.paused and self.pause_start:
-            current_pause = pygame.time.get_ticks() - self.pause_start
-        else:
-            current_pause = 0
-        return (pygame.time.get_ticks() - self.start_time - self.paused_time - current_pause) // 1000
+        paused_duration = pygame.time.get_ticks() - self.pause_start if self.paused and self.pause_start else 0
+        return (pygame.time.get_ticks() - self.start_time - self.paused_time - paused_duration) // 1000
 
     def spawn_duck(self):
         if self.paused or len(self.ducks) >= 10:
             return
-        now = pygame.time.get_ticks()
-        if now - self.last_spawn_time >= self.spawn_interval:
+        if pygame.time.get_ticks() - self.last_spawn_time >= self.spawn_interval:
             self.ducks.append(DuckFactory.create_duck())
-            self.last_spawn_time = now
+            self.last_spawn_time = pygame.time.get_ticks()
 
     def update_difficulty(self):
         if self.paused:
@@ -93,13 +89,11 @@ class Game:
             return
         for duck in self.ducks[:]:
             duck.move()
-
             if duck.is_hit:
                 self.ducks.remove(duck)
                 self.player.score += duck.points
                 if duck.restore_miss:
-                    self.player.bullets = min(self.player.bullets + 1, 5)
-
+                    self.player.bullets = min(self.player.bullets + 1, self.max_bullets)
             elif duck.x < -duck.rect.width or duck.y < -duck.rect.height or duck.y > SCREEN_HEIGHT:
                 self.ducks.remove(duck)
 
@@ -147,7 +141,6 @@ class Player:
                 if duck.restore_miss:
                     self.bullets = min(self.bullets + 1, 5)
                 return True
-
         return False
 
 
@@ -175,38 +168,25 @@ class Duck:
 class NormalDuck(Duck):
     def __init__(self):
         image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck.png"))
-        speed_x = random.choice([3, 4])
-        speed_y = random.choice([1, -1]) * random.randint(1, 3)
-        points = 1
-        super().__init__(speed_x, speed_y, image, points)
+        super().__init__(random.choice([3, 4]), random.choice([1, -1]) * random.randint(1, 3), image, points=1)
 
 
 class FastDuck(Duck):
     def __init__(self):
         image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_fast.png"))
-        speed_x = random.choice([6, 7])
-        speed_y = random.choice([1, -1]) * random.randint(1, 3)
-        points = 2
-        super().__init__(speed_x, speed_y, image, points)
+        super().__init__(random.choice([6, 7]), random.choice([1, -1]) * random.randint(1, 3), image, points=2)
 
 
 class FakeDuck(Duck):
     def __init__(self):
         image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_fake.png"))
-        speed_x = random.choice([2, 3])
-        speed_y = random.choice([1, -1]) * random.randint(1, 3)
-        points = -1
-        super().__init__(speed_x, speed_y, image, points)
+        super().__init__(random.choice([2, 3]), random.choice([1, -1]) * random.randint(1, 3), image, points=-1)
 
 
 class BonusDuck(Duck):
     def __init__(self):
         image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_bonus.png"))
-        speed_x = random.choice([3, 4])
-        speed_y = random.choice([1, -1]) * random.randint(1, 3)
-        points = 3
-        restore_miss = True
-        super().__init__(speed_x, speed_y, image, points, restore_miss)
+        super().__init__(random.choice([3, 4]), random.choice([1, -1]) * random.randint(1, 3), image, points=3, restore_miss=True)
 
 
 class DuckFactory:
@@ -214,8 +194,7 @@ class DuckFactory:
 
     @staticmethod
     def create_duck():
-        duck_type = random.choices([NormalDuck, FastDuck, FakeDuck, BonusDuck], weights=[0.5, 0.3, 0.1, 0.1])[0]
-        return duck_type()
+        return random.choices([NormalDuck, FastDuck, FakeDuck, BonusDuck], weights=[0.5, 0.3, 0.1, 0.1])[0]()
 
     @staticmethod
     def increase_speed():
@@ -229,38 +208,34 @@ class UIManager:
         self.bullet_image = pygame.transform.scale(self.bullet_image, (32, 32))
 
     def draw_score(self, score):
-        score_text = font.render(f"Score: {score}", True, BLACK)
-        self.screen.blit(score_text, (10, 10))
+        text = font.render(f"Score: {score}", True, BLACK)
+        self.screen.blit(text, (10, 10))
 
     def draw_bullets(self, bullets):
         for i in range(bullets):
-            x = 10 + i * 40
-            y = 50
-            self.screen.blit(self.bullet_image, (x, y))
+            self.screen.blit(self.bullet_image, (10 + i * 40, 50))
 
     def draw_gameover(self):
-        gameover_text = font.render("Game Over", True, BLACK)
-        self.screen.blit(gameover_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50))
+        text = font.render("Game Over", True, BLACK)
+        self.screen.blit(text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50))
 
     def draw_paused(self):
-        paused_text = font.render("Paused", True, BLACK)
-        self.screen.blit(paused_text, (SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 - 50))
+        text = font.render("Paused", True, BLACK)
+        self.screen.blit(text, (SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 - 50))
 
     def draw_button(self, text, x, y, width, height):
         pygame.draw.rect(self.screen, WHITE, (x, y, width, height))
-        button_text = font.render(text, True, BLACK)
-        self.screen.blit(button_text, (x + 10, y + 10))
+        self.screen.blit(font.render(text, True, BLACK), (x + 10, y + 10))
 
     def draw_menu(self):
         self.screen.fill(BLUE)
         self.draw_button("Start Game", 300, 250, 200, 50)
         self.draw_button("Exit", 300, 350, 200, 50)
         pygame.display.flip()
-        
-    def draw_timer(self, seconds):
-        timer_text = font.render(f"Time: {seconds}s", True, BLACK)
-        self.screen.blit(timer_text, (SCREEN_WIDTH - 150, 10))
 
+    def draw_timer(self, seconds):
+        text = font.render(f"Time: {seconds}s", True, BLACK)
+        self.screen.blit(text, (SCREEN_WIDTH - 150, 10))
 
 
 class Menu:
@@ -274,21 +249,20 @@ class Menu:
             if event.type == pygame.QUIT:
                 self.is_running = False
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                mouse_pos = pygame.mouse.get_pos()
-                if 300 <= mouse_pos[0] <= 500 and 250 <= mouse_pos[1] <= 300:
-                    return "start"
-                elif 300 <= mouse_pos[0] <= 500 and 350 <= mouse_pos[1] <= 400:
-                    return "exit"
+                x, y = pygame.mouse.get_pos()
+                if 300 <= x <= 500:
+                    if 250 <= y <= 300:
+                        return "start"
+                    elif 350 <= y <= 400:
+                        return "exit"
         return None
 
     def run(self):
         while self.is_running:
             self.ui_manager.draw_menu()
             action = self.handle_events()
-            if action == "start":
-                return "start"
-            elif action == "exit":
-                return "exit"
+            if action:
+                return action
 
 
 def main():
