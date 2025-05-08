@@ -53,11 +53,7 @@ class Game:
             return
         now = pygame.time.get_ticks()
         if now - self.last_spawn_time >= self.spawn_interval:
-            duck = random.choices(
-                [NormalDuck, FastDuck, FakeDuck, BonusDuck],
-                weights=[0.5, 0.3, 0.1, 0.1]
-            )[0]()
-            self.ducks.append(duck)
+            self.ducks.append(DuckFactory.create_duck())
             self.last_spawn_time = now
 
     def update_difficulty(self):
@@ -67,21 +63,22 @@ class Game:
         if now - self.difficulty_timer >= 3000:
             if self.spawn_interval > self.min_spawn_interval:
                 self.spawn_interval -= self.difficulty_step
-            BaseDuck.increase_speed()
+            DuckFactory.increase_speed()
             self.difficulty_timer = now
 
     def update(self):
         if self.paused:
             return
-
         for duck in self.ducks[:]:
             duck.move()
+
             if duck.is_hit:
                 self.ducks.remove(duck)
                 self.player.score += duck.points
                 if duck.restore_miss:
                     self.player.misses = max(self.player.misses - 1, 0)
-            elif (duck.x < -duck.rect.width or duck.y < -duck.rect.height or duck.y > SCREEN_HEIGHT):
+
+            elif duck.x < -duck.rect.width or duck.y < -duck.rect.height or duck.y > SCREEN_HEIGHT:
                 self.ducks.remove(duck)
                 self.player.misses += 1
 
@@ -129,20 +126,17 @@ class Player:
         self.misses += 1
 
 
-class BaseDuck:
-    speed_increase = 0
-
-    def __init__(self, image_file, speed_x_range, points, restore_miss=False):
+class Duck:
+    def __init__(self, speed_x, speed_y, image, points, restore_miss=False):
         self.x = random.randint(SCREEN_WIDTH, SCREEN_WIDTH + 100)
         self.y = random.randint(50, SCREEN_HEIGHT - 50)
-        self.speed_x = random.choice(speed_x_range) + BaseDuck.speed_increase
-        self.speed_y = random.choice([1, -1]) * random.randint(1, 3)
-        self.image = pygame.image.load(os.path.join(os.path.dirname(__file__), image_file))
-        self.image = pygame.transform.scale(self.image, (100, 100))
+        self.speed_x = speed_x
+        self.speed_y = speed_y
+        self.image = pygame.transform.scale(image, (100, 100))
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
+        self.is_hit = False
         self.points = points
         self.restore_miss = restore_miss
-        self.is_hit = False
 
     def move(self):
         self.x -= self.speed_x
@@ -152,29 +146,55 @@ class BaseDuck:
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
-    @classmethod
-    def increase_speed(cls):
-        cls.speed_increase += 0.5
 
-
-class NormalDuck(BaseDuck):
+class NormalDuck(Duck):
     def __init__(self):
-        super().__init__("duck.png", [3, 4], 1)
+        image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck.png"))
+        speed_x = random.choice([3, 4])
+        speed_y = random.choice([1, -1]) * random.randint(1, 3)
+        points = 1
+        super().__init__(speed_x, speed_y, image, points)
 
 
-class FastDuck(BaseDuck):
+class FastDuck(Duck):
     def __init__(self):
-        super().__init__("duck_fast.png", [6, 7], 2)
+        image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_fast.png"))
+        speed_x = random.choice([6, 7])
+        speed_y = random.choice([1, -1]) * random.randint(1, 3)
+        points = 2
+        super().__init__(speed_x, speed_y, image, points)
 
 
-class FakeDuck(BaseDuck):
+class FakeDuck(Duck):
     def __init__(self):
-        super().__init__("duck_fake.png", [2, 3], -1)
+        image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_fake.png"))
+        speed_x = random.choice([2, 3])
+        speed_y = random.choice([1, -1]) * random.randint(1, 3)
+        points = -1
+        super().__init__(speed_x, speed_y, image, points)
 
 
-class BonusDuck(BaseDuck):
+class BonusDuck(Duck):
     def __init__(self):
-        super().__init__("duck_bonus.png", [3, 4], 3, restore_miss=True)
+        image = pygame.image.load(os.path.join(os.path.dirname(__file__), "duck_bonus.png"))
+        speed_x = random.choice([3, 4])
+        speed_y = random.choice([1, -1]) * random.randint(1, 3)
+        points = 3
+        restore_miss = True
+        super().__init__(speed_x, speed_y, image, points, restore_miss)
+
+
+class DuckFactory:
+    speed_increase = 0
+
+    @staticmethod
+    def create_duck():
+        duck_type = random.choices([NormalDuck, FastDuck, FakeDuck, BonusDuck], weights=[0.5, 0.3, 0.1, 0.1])[0]
+        return duck_type()
+
+    @staticmethod
+    def increase_speed():
+        DuckFactory.speed_increase += 0.5
 
 
 class UIManager:
