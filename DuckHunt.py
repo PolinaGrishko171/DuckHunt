@@ -38,8 +38,6 @@ class Game:
         self.remaining_bullets = self.max_bullets
         self.bullet_image = pygame.image.load("bullet.png")
 
-
-
     def start(self):
         self.run()
 
@@ -50,8 +48,11 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_p:
                     self.paused = not self.paused
-            elif event.type == pygame.MOUSEBUTTONDOWN and not self.paused:
-                self.player.shoot(event.pos, self.ducks)
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not self.paused:
+                if self.player.bullets > 0:
+                    hit = self.player.shoot(event.pos, self.ducks)
+                    if not hit:
+                        self.player.bullets -= 1
 
     def spawn_duck(self):
         if self.paused or len(self.ducks) >= 10:
@@ -81,11 +82,10 @@ class Game:
                 self.ducks.remove(duck)
                 self.player.score += duck.points
                 if duck.restore_miss:
-                    self.player.bullets = max(self.player.bullets - 1, 0)
+                    self.player.bullets = min(self.player.bullets + 1, 5)
 
             elif duck.x < -duck.rect.width or duck.y < -duck.rect.height or duck.y > SCREEN_HEIGHT:
                 self.ducks.remove(duck)
-                self.player.bullets += 1
 
         if self.player.bullets <= 0:
             self.game_over()
@@ -127,8 +127,11 @@ class Player:
             if duck.rect.collidepoint(position):
                 duck.is_hit = True
                 self.score += duck.points
-                return
-        self.bullets -= 1
+                if duck.restore_miss:
+                    self.bullets = min(self.bullets + 1, 5)
+                return True
+
+        return False
 
 
 class Duck:
@@ -214,7 +217,7 @@ class UIManager:
 
     def draw_bullets(self, bullets):
         for i in range(bullets):
-            x = 10 + i * (self.bullet_image.get_width() + 5)
+            x = 10 + i * 40
             y = 50
             self.screen.blit(self.bullet_image, (x, y))
 
