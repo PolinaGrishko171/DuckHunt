@@ -229,7 +229,55 @@ class UIManager:
         paused_text = font.render("Paused", True, BLACK)
         self.screen.blit(paused_text, (SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 - 50))
 
+    def draw_button(self, text, x, y, width, height):
+        pygame.draw.rect(self.screen, WHITE, (x, y, width, height))
+        button_text = font.render(text, True, BLACK)
+        self.screen.blit(button_text, (x + 10, y + 10))
 
-game = Game(screen)
-game.start()
-pygame.quit()
+    def draw_menu(self):
+        self.screen.fill(BLUE)
+        self.draw_button("Start Game", 300, 250, 200, 50)
+        self.draw_button("Exit", 300, 350, 200, 50)
+        pygame.display.flip()
+
+
+class Menu:
+    def __init__(self, screen):
+        self.screen = screen
+        self.ui_manager = UIManager(screen)
+        self.is_running = True
+
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                self.is_running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                mouse_pos = pygame.mouse.get_pos()
+                if 300 <= mouse_pos[0] <= 500 and 250 <= mouse_pos[1] <= 300:
+                    return "start"
+                elif 300 <= mouse_pos[0] <= 500 and 350 <= mouse_pos[1] <= 400:
+                    return "exit"
+        return None
+
+    def run(self):
+        while self.is_running:
+            self.ui_manager.draw_menu()
+            action = self.handle_events()
+            if action == "start":
+                return "start"
+            elif action == "exit":
+                return "exit"
+
+
+def main():
+    menu = Menu(screen)
+    action = menu.run()
+
+    if action == "start":
+        game = Game(screen)
+        game.start()
+    pygame.quit()
+
+
+if __name__ == "__main__":
+    main()
