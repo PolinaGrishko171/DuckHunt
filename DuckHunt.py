@@ -37,6 +37,9 @@ class Game:
         self.max_bullets = 5
         self.remaining_bullets = self.max_bullets
         self.bullet_image = pygame.image.load("bullet.png")
+        self.start_time = pygame.time.get_ticks()
+        self.paused_time = 0
+        self.pause_start = None
 
     def start(self):
         self.run()
@@ -48,11 +51,24 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_p:
                     self.paused = not self.paused
+                    if self.paused:
+                        self.pause_start = pygame.time.get_ticks()
+                    else:
+                        if self.pause_start:
+                            self.paused_time += pygame.time.get_ticks() - self.pause_start
+                            self.pause_start = None
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not self.paused:
                 if self.player.bullets > 0:
                     hit = self.player.shoot(event.pos, self.ducks)
                     if not hit:
                         self.player.bullets -= 1
+                        
+    def get_elapsed_time(self):
+        if self.paused and self.pause_start:
+            current_pause = pygame.time.get_ticks() - self.pause_start
+        else:
+            current_pause = 0
+        return (pygame.time.get_ticks() - self.start_time - self.paused_time - current_pause) // 1000
 
     def spawn_duck(self):
         if self.paused or len(self.ducks) >= 10:
@@ -96,6 +112,7 @@ class Game:
             duck.draw(self.screen)
         self.ui_manager.draw_score(self.player.score)
         self.ui_manager.draw_bullets(self.player.bullets)
+        self.ui_manager.draw_timer(self.get_elapsed_time())
         if self.paused:
             self.ui_manager.draw_paused()
         pygame.display.flip()
@@ -239,6 +256,11 @@ class UIManager:
         self.draw_button("Start Game", 300, 250, 200, 50)
         self.draw_button("Exit", 300, 350, 200, 50)
         pygame.display.flip()
+        
+    def draw_timer(self, seconds):
+        timer_text = font.render(f"Time: {seconds}s", True, BLACK)
+        self.screen.blit(timer_text, (SCREEN_WIDTH - 150, 10))
+
 
 
 class Menu:
