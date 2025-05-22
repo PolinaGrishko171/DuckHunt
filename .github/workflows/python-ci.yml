@@ -35,13 +35,14 @@ jobs:
         run: pytest --html=pytest-report.html --self-contained-html
 
       - name: Upload test report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.2
         with:
           name: pytest-html-report
           path: pytest-report.html
 
       - name: Upload flake8 lint report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.2
         with:
           name: flake8-html-report
           path: flake8-report
+
