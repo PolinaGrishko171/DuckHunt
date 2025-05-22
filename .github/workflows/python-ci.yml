@@ -11,17 +11,37 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./ 
+        working-directory: ./
 
     steps:
       - uses: actions/checkout@v3
+      
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
       - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Run tests
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-html flake8-html
+
+      - name: Run flake8 linting and generate HTML report
+        run: flake8 . --format=html --htmldir=flake8-report || true
+
+      - name: Run tests and generate pytest-html report
         env:
           PYTHONPATH: ${{ github.workspace }}
-        run: pytest
+        run: pytest --html=pytest-report.html --self-contained-html
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v3
+        with:
+          name: pytest-html-report
+          path: pytest-report.html
+
+      - name: Upload flake8 lint report
+        uses: actions/upload-artifact@v3
+        with:
+          name: flake8-html-report
+          path: flake8-report

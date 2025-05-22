@@ -1,3 +1,5 @@
 pygame
 pytest
 flake8
+pytest-html
+flake8-html
